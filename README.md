@@ -82,16 +82,31 @@ When outside the scheduled hours, the app will automatically disable itself.
 - `utils.py`: Helper functions used across the application
 - `start.bat`: Batch file to start the application without a console window
 
+## Configuration
+
+The application uses JSON configuration files to save user preferences:
+
+- `stay_awake_config.json`: Created automatically when you run the app and save settings
+- `default_config.json`: Default configuration provided in the repository
+
+The user-specific configuration file (`stay_awake_config.json`) is included in `.gitignore` to avoid committing personal settings to the repository.
+
 ## Building an Executable
 
-You can create a standalone executable using PyInstaller:
+You can create a standalone executable using the provided build script:
+
+```
+python build_exe.py
+```
+
+Alternatively, you can use PyInstaller directly:
 
 ```
 pip install pyinstaller
-pyinstaller --onefile --windowed --icon=icon.png stay_awake.py
+pyinstaller --onefile --noconsole --name=StayAwake stay_awake.py
 ```
 
-The executable will be created in the `dist` folder.
+The executable will be created in the `dist` folder. The build artifacts are included in `.gitignore` to keep the repository clean.
 
 ## License
 

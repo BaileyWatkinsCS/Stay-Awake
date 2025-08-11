@@ -318,10 +318,24 @@ class StayAwakeApp(QMainWindow):
             }
         }
         
+        # Look for configuration file in the following order:
+        # 1. User's config file (stay_awake_config.json)
+        # 2. Default config file (default_config.json) if included in the repository
+        # 3. Programmatically generated default config if neither exists
+        
         try:
             if os.path.exists(CONFIG_FILE):
                 with open(CONFIG_FILE, 'r') as f:
                     config = json.load(f)
+            elif os.path.exists("default_config.json"):
+                # Try to use the default config from the repository or executable
+                with open("default_config.json", 'r') as f:
+                    config = json.load(f)
+            elif hasattr(sys, '_MEIPASS'):  # Check if running as PyInstaller executable
+                default_config_path = os.path.join(sys._MEIPASS, "default_config.json")
+                if os.path.exists(default_config_path):
+                    with open(default_config_path, 'r') as f:
+                        config = json.load(f)
                 
                 # Handle migration from old config format to new
                 if "weekly_schedule" in config and "schedules" in config["weekly_schedule"]:

@@ -39,7 +39,8 @@ def build_exe():
     #     args.append('--icon=icon.png')
     
     # Add data files if needed (configs, etc.)
-    # args.append('--add-data=config.json;.')
+    if os.path.exists('default_config.json'):
+        args.append('--add-data=default_config.json;.')
     
     # Run PyInstaller
     PyInstaller.__main__.run(args)
