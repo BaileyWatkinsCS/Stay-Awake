@@ -81,7 +81,6 @@ When outside the scheduled hours, the app will automatically disable itself.
 - `running_apps_dialog.py`: Dialog for selecting running applications
 - `utils.py`: Helper functions used across the application
 - `start.bat`: Batch file to start the application without a console window
-- `create_icon.py`: Script to generate the application icon
 
 ## Building an Executable
 
