@@ -1,0 +1,6 @@
+# Required Python packages for the Stay Awake application
+PyQt6           # GUI framework
+pywin32         # Windows API integration
+schedule        # Scheduling functionality
+psutil          # Process monitoring
+pillow          # Optional: For icon generation

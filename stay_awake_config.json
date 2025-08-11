@@ -1,0 +1,120 @@
+{
+  "active": true,
+  "schedule": {
+    "enabled": true
+  },
+  "weekly_schedules": {
+    "Monday": {
+      "enabled": false,
+      "use_global": true,
+      "periods": [
+        {
+          "enabled": true,
+          "start_hour": 9,
+          "start_minute": 0,
+          "end_hour": 17,
+          "end_minute": 0
+        }
+      ]
+    },
+    "Tuesday": {
+      "enabled": false,
+      "use_global": true,
+      "periods": [
+        {
+          "enabled": true,
+          "start_hour": 9,
+          "start_minute": 0,
+          "end_hour": 17,
+          "end_minute": 0
+        }
+      ]
+    },
+    "Wednesday": {
+      "enabled": false,
+      "use_global": true,
+      "periods": [
+        {
+          "enabled": true,
+          "start_hour": 9,
+          "start_minute": 0,
+          "end_hour": 17,
+          "end_minute": 0
+        }
+      ]
+    },
+    "Thursday": {
+      "enabled": false,
+      "use_global": true,
+      "periods": [
+        {
+          "enabled": true,
+          "start_hour": 9,
+          "start_minute": 0,
+          "end_hour": 17,
+          "end_minute": 0
+        }
+      ]
+    },
+    "Friday": {
+      "enabled": false,
+      "use_global": true,
+      "periods": [
+        {
+          "enabled": true,
+          "start_hour": 9,
+          "start_minute": 0,
+          "end_hour": 17,
+          "end_minute": 0
+        }
+      ]
+    },
+    "Saturday": {
+      "enabled": false,
+      "use_global": true,
+      "periods": [
+        {
+          "enabled": true,
+          "start_hour": 9,
+          "start_minute": 0,
+          "end_hour": 17,
+          "end_minute": 0
+        }
+      ]
+    },
+    "Sunday": {
+      "enabled": false,
+      "use_global": true,
+      "periods": [
+        {
+          "enabled": true,
+          "start_hour": 9,
+          "start_minute": 0,
+          "end_hour": 17,
+          "end_minute": 0
+        }
+      ]
+    },
+    "global": {
+      "enabled": true,
+      "periods": [
+        {
+          "enabled": true,
+          "start_hour": 5,
+          "start_minute": 0,
+          "end_hour": 17,
+          "end_minute": 0
+        }
+      ]
+    }
+  },
+  "app_monitoring": {
+    "enabled": true,
+    "apps": []
+  },
+  "activity_settings": {
+    "type": "mouse_movement",
+    "interval": 50,
+    "custom_key": "7E"
+  }
+}
