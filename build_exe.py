@@ -5,23 +5,54 @@ import os
 import subprocess
 import PyInstaller.__main__
 import shutil
+from PIL import Image
 
 def build_exe():
     """Build the executable using PyInstaller."""
     print("Building Stay Awake executable...")
     
-    # Create an icon file from PNG if it doesn't exist
-    if not os.path.exists('icon.ico') and os.path.exists('icon.png'):
+    # Create a properly formatted Windows icon file
+    windows_icon_path = 'windows_icon.ico'
+    if os.path.exists('icon.png') and (not os.path.exists(windows_icon_path) or os.path.getsize(windows_icon_path) < 1000):
         try:
-            from PIL import Image
+            # Open the image and ensure it's RGBA (transparent background)
             img = Image.open('icon.png')
-            icon_sizes = [(16, 16), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
-            img.save('icon.ico', sizes=icon_sizes)
-            print("Created icon.ico from icon.png")
+            if img.mode != 'RGBA':
+                img = img.convert('RGBA')
+            
+            # Standard Windows icon sizes
+            sizes = [(16, 16), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
+            
+            # Create a transparent background for each size
+            resized_imgs = []
+            for size in sizes:
+                # Create a new transparent image
+                new_img = Image.new('RGBA', size, (0, 0, 0, 0))
+                
+                # Resize the original image proportionally to fit within the size
+                ratio = min(size[0] / img.width, size[1] / img.height)
+                resized_width = int(img.width * ratio)
+                resized_height = int(img.height * ratio)
+                resized = img.resize((resized_width, resized_height), Image.LANCZOS)
+                
+                # Calculate position to center the image
+                pos_x = (size[0] - resized_width) // 2
+                pos_y = (size[1] - resized_height) // 2
+                
+                # Paste the resized image onto the transparent background
+                new_img.paste(resized, (pos_x, pos_y), resized)
+                resized_imgs.append(new_img)
+            
+            # Save as ICO
+            resized_imgs[0].save(windows_icon_path, format='ICO', 
+                               sizes=[(img.size[0], img.size[1]) for img in resized_imgs],
+                               append_images=resized_imgs[1:])
+            
+            print(f"Created standard Windows icon at {windows_icon_path}")
         except ImportError:
             print("Pillow not installed. Using default icon.")
         except Exception as e:
-            print(f"Error creating icon.ico: {e}")
+            print(f"Error creating icon: {e}")
     
     # Define PyInstaller options
     args = [
@@ -32,11 +63,25 @@ def build_exe():
         '--clean',  # Clean cache before building
     ]
     
-    # Skip icon for now due to issues
-    # if os.path.exists('icon.ico'):
-    #     args.append('--icon=icon.ico')
-    # elif os.path.exists('icon.png'):
-    #     args.append('--icon=icon.png')
+    # Use the standard Windows icon that we created
+    if os.path.exists('windows_icon.ico'):
+        icon_path = os.path.abspath('windows_icon.ico')
+        args.append(f'--icon={icon_path}')
+        print(f"Using standard Windows icon: {icon_path}")
+    elif os.path.exists('app_icon.ico'):
+        icon_path = os.path.abspath('app_icon.ico')
+        args.append(f'--icon={icon_path}')
+        print(f"Using app_icon.ico: {icon_path}")
+    elif os.path.exists('icon.ico'):
+        icon_path = os.path.abspath('icon.ico')
+        args.append(f'--icon={icon_path}')
+        print(f"Using icon.ico: {icon_path}")
+    elif os.path.exists('icon.png'):
+        icon_path = os.path.abspath('icon.png')
+        args.append(f'--icon={icon_path}')
+        print(f"Using icon.png directly: {icon_path}")
+    else:
+        print("No icon specified")
     
     # Add data files if needed (configs, etc.)
     if os.path.exists('default_config.json'):
