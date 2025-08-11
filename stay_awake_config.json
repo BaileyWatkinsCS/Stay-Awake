@@ -1,11 +1,11 @@
 {
   "active": true,
   "schedule": {
-    "enabled": true
+    "enabled": false
   },
   "weekly_schedules": {
     "Monday": {
-      "enabled": true,
+      "enabled": false,
       "use_global": true,
       "periods": [
         {
@@ -18,7 +18,7 @@
       ]
     },
     "Tuesday": {
-      "enabled": true,
+      "enabled": false,
       "use_global": true,
       "periods": [
         {
@@ -31,7 +31,7 @@
       ]
     },
     "Wednesday": {
-      "enabled": true,
+      "enabled": false,
       "use_global": true,
       "periods": [
         {
@@ -44,7 +44,7 @@
       ]
     },
     "Thursday": {
-      "enabled": true,
+      "enabled": false,
       "use_global": true,
       "periods": [
         {
@@ -57,7 +57,7 @@
       ]
     },
     "Friday": {
-      "enabled": true,
+      "enabled": false,
       "use_global": true,
       "periods": [
         {

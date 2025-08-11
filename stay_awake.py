@@ -304,7 +304,7 @@ class StayAwakeApp(QMainWindow):
         default_config = {
             "active": True,
             "schedule": {
-                "enabled": False
+                "enabled": True  # Enable scheduling by default
             },
             "weekly_schedules": default_weekly_schedules,
             "app_monitoring": {
@@ -720,6 +720,19 @@ class StayAwakeApp(QMainWindow):
         self.worker.toggle_schedule(state)
         # Update schedule status label
         self.schedule_status_label.setText("Schedule: " + ("Enabled" if state else "Disabled"))
+        
+        # If disabling schedule, set all days and global schedule to disabled
+        if not state and hasattr(self.worker, "weekly_schedules") and self.worker.weekly_schedules:
+            # Disable the global schedule
+            if "global" in self.worker.weekly_schedules:
+                self.worker.weekly_schedules["global"]["enabled"] = False
+            
+            # Get the list of days from the WeeklyScheduleDialog class
+            from weekly_schedule_dialog import WeeklyScheduleDialog
+            for day in WeeklyScheduleDialog.DAYS_OF_WEEK:
+                if day in self.worker.weekly_schedules:
+                    self.worker.weekly_schedules[day]["enabled"] = False
+                    
         # Update schedule summary to reflect the new state
         self.update_schedule_summary()
         self.save_config()

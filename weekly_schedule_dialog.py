@@ -29,10 +29,15 @@ class WeeklyScheduleDialog(QDialog):
         """Create default schedules for each day"""
         schedules = {}
         
+        # Weekdays (Monday through Friday) should be enabled by default
+        weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+        
         # For each day, create a default schedule
         for day in self.DAYS_OF_WEEK:
+            # Enable weekdays by default, leave weekends disabled
+            is_weekday = day in weekdays
             schedules[day] = {
-                "enabled": False,
+                "enabled": is_weekday,
                 "use_global": True,
                 "periods": [
                     {
@@ -45,9 +50,9 @@ class WeeklyScheduleDialog(QDialog):
                 ]
             }
             
-        # Add global schedule
+        # Add global schedule - enabled by default
         schedules["global"] = {
-            "enabled": False,
+            "enabled": True,  # Global schedule is enabled by default
             "periods": [
                 {
                     "enabled": True,
