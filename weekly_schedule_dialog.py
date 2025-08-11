@@ -157,20 +157,29 @@ class WeeklyScheduleDialog(QDialog):
         
         # Enable checkbox
         day_enabled_layout = QHBoxLayout()
-        day_enabled = QCheckBox(f"Enable custom schedule for {day}")
+        day_enabled = QCheckBox(f"Enable schedule for {day}")
         day_enabled_layout.addWidget(day_enabled)
         layout.addLayout(day_enabled_layout)
         
-        # Use global or custom selector
-        schedule_type_layout = QHBoxLayout()
+        # Use global or custom selector in a group box to make the relationship clearer
+        schedule_options_group = QGroupBox("Schedule Type")
+        schedule_options_layout = QVBoxLayout(schedule_options_group)
+        
         use_global = QCheckBox("Use global schedule")
         use_global.setChecked(True)
-        schedule_type_layout.addWidget(use_global)
-        layout.addLayout(schedule_type_layout)
+        schedule_options_layout.addWidget(use_global)
+        
+        # Add a label explaining what global schedule means
+        global_description = QLabel("When checked, this day will use the settings from the Global Schedule tab")
+        global_description.setWordWrap(True)
+        schedule_options_layout.addWidget(global_description)
+        
+        layout.addWidget(schedule_options_group)
         
         # Store references to widgets
         setattr(self, f"{day.lower()}_enabled", day_enabled)
         setattr(self, f"{day.lower()}_use_global", use_global)
+        setattr(self, f"{day.lower()}_schedule_options_group", schedule_options_group)
         
         # Connect signals
         day_enabled.stateChanged.connect(lambda state, d=day: self._on_day_enabled_changed(state, d))
@@ -219,9 +228,22 @@ class WeeklyScheduleDialog(QDialog):
         # Get related widgets
         use_global = getattr(self, f"{day.lower()}_use_global")
         custom_group = getattr(self, f"{day.lower()}_custom_group")
+        schedule_options_group = getattr(self, f"{day.lower()}_schedule_options_group", None)
         
-        # Update widgets
-        use_global.setEnabled(is_enabled)
+        # If disabling the day entirely, disable both global and custom settings
+        if not is_enabled:
+            use_global.setEnabled(False)
+            custom_group.setEnabled(False)
+            if schedule_options_group:
+                schedule_options_group.setEnabled(False)
+        else:
+            # Day is enabled, so enable the use_global checkbox
+            use_global.setEnabled(True)
+            if schedule_options_group:
+                schedule_options_group.setEnabled(True)
+            
+            # Custom group is only enabled if we're not using global settings
+            custom_group.setEnabled(not use_global.isChecked())
         
         # Update custom group based on both day enabled and use global
         custom_group.setEnabled(is_enabled and not use_global.isChecked())
@@ -230,11 +252,44 @@ class WeeklyScheduleDialog(QDialog):
         """Handle use global schedule toggle"""
         use_global = bool(state)
         
-        # Get custom group
+        # Get custom group and day enabled checkbox
         custom_group = getattr(self, f"{day.lower()}_custom_group")
+        day_enabled = getattr(self, f"{day.lower()}_enabled")
         
-        # Update custom group
-        custom_group.setEnabled(not use_global)
+        # If toggling between global and custom, ensure clear UI indication
+        if use_global:
+            # Make it clear we're using global settings by disabling custom settings
+            # but keeping the day enabled if it was already enabled
+            custom_group.setEnabled(False)
+            
+            # Set the day title to reflect that we're using global settings
+            if hasattr(self.tab_widget, "tabText") and day in self.DAYS_OF_WEEK:
+                tab_index = self.DAYS_OF_WEEK.index(day) + 1  # +1 because Global tab is first
+                current_text = self.tab_widget.tabText(tab_index)
+                if not current_text.endswith(" (Global)"):
+                    self.tab_widget.setTabText(tab_index, f"{day} (Global)")
+        else:
+            # We're switching to custom settings
+            # Only enable custom group if the day is enabled
+            custom_group.setEnabled(day_enabled.isChecked())
+            
+            # Update tab text to remove global indicator
+            if hasattr(self.tab_widget, "tabText") and day in self.DAYS_OF_WEEK:
+                tab_index = self.DAYS_OF_WEEK.index(day) + 1  # +1 because Global tab is first
+                current_text = self.tab_widget.tabText(tab_index)
+                if current_text.endswith(" (Global)"):
+                    self.tab_widget.setTabText(tab_index, day)
+            
+        # Get the list widget for this day's periods
+        period_list = getattr(self, f"{day.lower()}_period_list", None)
+        if period_list and use_global:
+            # Just disable the periods rather than clearing them
+            # This preserves custom settings in case they're needed later
+            for i in range(period_list.count()):
+                item = period_list.item(i)
+                widget = self.period_list_widgets.get(item, None)
+                if widget and hasattr(widget, "enabled_checkbox"):
+                    widget.enabled_checkbox.setChecked(False)
     
     def load_schedules(self):
         """Load the current schedules into the UI"""
@@ -276,6 +331,14 @@ class WeeklyScheduleDialog(QDialog):
             
             # Update enabled states
             self._on_day_enabled_changed(day_enabled.isChecked(), day)
+            
+            # Update tab text based on use_global setting
+            if hasattr(self.tab_widget, "tabText") and day in self.DAYS_OF_WEEK:
+                tab_index = self.DAYS_OF_WEEK.index(day) + 1  # +1 because Global tab is first
+                if day_schedule.get("enabled", False) and day_schedule.get("use_global", True):
+                    self.tab_widget.setTabText(tab_index, f"{day} (Global)")
+                else:
+                    self.tab_widget.setTabText(tab_index, day)
     
     def apply_schedules(self):
         """Save the current UI state to the schedules dict"""

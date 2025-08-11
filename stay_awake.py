@@ -403,6 +403,9 @@ class StayAwakeApp(QMainWindow):
             if "custom_key" in self.config["activity_settings"]:
                 self.worker.set_custom_key(self.config["activity_settings"]["custom_key"])
         
+        # Update the schedule summary
+        self.update_schedule_summary()
+        
         # Enable features
         self.worker.toggle_schedule(self.config["schedule"]["enabled"])
         self.worker.toggle_app_monitoring(self.config["app_monitoring"]["enabled"])
@@ -510,25 +513,72 @@ class StayAwakeApp(QMainWindow):
         schedule_tab = QWidget()
         schedule_layout = QVBoxLayout(schedule_tab)
         
-        schedule_header = QHBoxLayout()
-        self.schedule_checkbox = QCheckBox("Enable Schedule")
+        # Schedule section with enable checkbox and settings
+        schedule_group = QGroupBox("Weekly Schedule")
+        schedule_group_layout = QVBoxLayout(schedule_group)
+        
+        # Enable checkbox
+        self.schedule_checkbox = QCheckBox("Enable scheduling")
         self.schedule_checkbox.setChecked(self.config["schedule"]["enabled"])
         self.schedule_checkbox.toggled.connect(self.toggle_schedule)
-        schedule_header.addWidget(self.schedule_checkbox)
-        schedule_layout.addLayout(schedule_header)
+        schedule_group_layout.addWidget(self.schedule_checkbox)
         
-        # Button to open the weekly schedule dialog
-        schedule_button = QPushButton("Configure Schedule")
-        schedule_button.clicked.connect(self.open_weekly_schedule_dialog)
-        schedule_layout.addWidget(schedule_button)
-        
+        # Schedule description
         schedule_info = QLabel(
-            "Configure different schedules for each day of the week. "
-            "This allows you to have different active hours for weekdays and weekends, "
-            "or any custom schedule for specific days."
+            "Configure different active hours for each day of the week.\n"
+            "This allows you to create custom schedules for weekdays and weekends."
         )
         schedule_info.setWordWrap(True)
-        schedule_layout.addWidget(schedule_info)
+        schedule_group_layout.addWidget(schedule_info)
+        
+        # Button to open the weekly schedule dialog
+        schedule_button = QPushButton("Configure Weekly Schedule")
+        schedule_button.setMinimumHeight(36)  # Make button a bit taller
+        schedule_button.clicked.connect(self.open_weekly_schedule_dialog)
+        schedule_group_layout.addWidget(schedule_button)
+        
+        # Add the schedule group to main layout
+        schedule_layout.addWidget(schedule_group)
+        
+        # Current schedule summary
+        summary_group = QGroupBox("Current Schedule Summary")
+        summary_layout = QVBoxLayout(summary_group)
+        
+        # Weekday summary
+        weekday_label = QLabel("<b>Weekdays:</b>")
+        summary_layout.addWidget(weekday_label)
+        
+        self.weekday_schedule_label = QLabel("Not configured")
+        summary_layout.addWidget(self.weekday_schedule_label)
+        
+        # Weekend summary
+        weekend_label = QLabel("<b>Weekends:</b>")
+        summary_layout.addWidget(weekend_label)
+        
+        self.weekend_schedule_label = QLabel("Not configured")
+        summary_layout.addWidget(self.weekend_schedule_label)
+        
+        # Day-specific schedules section
+        self.custom_days_label = QLabel("<b>Days with custom schedules:</b>")
+        summary_layout.addWidget(self.custom_days_label)
+        
+        self.custom_days_schedule = QLabel("None")
+        self.custom_days_schedule.setWordWrap(True)
+        summary_layout.addWidget(self.custom_days_schedule)
+        
+        # Tips for schedules
+        tips_label = QLabel(
+            "<b>Tips:</b> You can create multiple time slots for each day, and set "
+            "different schedules for individual days of the week."
+        )
+        tips_label.setWordWrap(True)
+        summary_layout.addWidget(tips_label)
+        
+        # Add the summary group to main layout
+        schedule_layout.addWidget(summary_group)
+        
+        # Add stretch to push everything to the top
+        schedule_layout.addStretch(1)
         
         # Activity Settings tab
         activity_tab = QWidget()
@@ -670,6 +720,8 @@ class StayAwakeApp(QMainWindow):
         self.worker.toggle_schedule(state)
         # Update schedule status label
         self.schedule_status_label.setText("Schedule: " + ("Enabled" if state else "Disabled"))
+        # Update schedule summary to reflect the new state
+        self.update_schedule_summary()
         self.save_config()
         
     def toggle_app_monitoring(self, state):
@@ -682,11 +734,36 @@ class StayAwakeApp(QMainWindow):
         
     def open_weekly_schedule_dialog(self):
         """Open dialog to configure weekly schedule"""
+        # Ensure weekly_schedules is initialized before opening dialog
+        if not hasattr(self.worker, "weekly_schedules"):
+            self.worker.weekly_schedules = {}
+        
+        # Update the global schedule enabled state based on main schedule toggle
+        # This helps synchronize the global schedule state with the main schedule toggle
+        if "global" in self.worker.weekly_schedules:
+            self.worker.weekly_schedules["global"]["enabled"] = self.worker.schedule_active
+            
         dialog = WeeklyScheduleDialog(self, self.worker.weekly_schedules)
         if dialog.exec():
             # Get updated schedules
             self.worker.weekly_schedules = dialog.get_schedules()
+            
+            # Sync the main schedule toggle with global schedule state
+            global_enabled = self.worker.weekly_schedules.get("global", {}).get("enabled", False)
+            if self.worker.schedule_active != global_enabled:
+                # Update the main schedule toggle without triggering the toggle_schedule method
+                # to prevent circular references
+                self.schedule_checkbox.blockSignals(True)
+                self.schedule_checkbox.setChecked(global_enabled)
+                self.schedule_checkbox.blockSignals(False)
+                self.worker.toggle_schedule(global_enabled)
+                self.schedule_status_label.setText("Schedule: " + ("Enabled" if global_enabled else "Disabled"))
+            
+            # Update the schedule summary display
+            self.update_schedule_summary()
             self.save_config()
+            # Update the schedule summary
+            self.update_schedule_summary()
     
     def activity_type_changed(self):
         """Called when activity type selection is changed"""
@@ -742,6 +819,87 @@ class StayAwakeApp(QMainWindow):
         self.interval_value.setText(f"{value} seconds")
         self.worker.set_activity_interval(value)
         self.save_config()
+    
+    def update_schedule_summary(self):
+        """Update the schedule summary display based on current schedules"""
+        schedules = self.worker.weekly_schedules
+        
+        # Format for displaying time periods
+        def format_time_periods(periods):
+            times = []
+            for p in periods:
+                if p.get("enabled", False):
+                    times.append(f"{p['start_hour']}:{p['start_minute']:02d}-{p['end_hour']}:{p['end_minute']:02d}")
+            return ", ".join(times) if times else "Not configured"
+        
+        # Weekday summary (Monday-Friday)
+        weekday_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+        
+        # Check if all weekdays use the same schedule (global or identical custom)
+        all_use_global = all(
+            day in schedules and 
+            schedules[day]["enabled"] and 
+            schedules[day]["use_global"]
+            for day in weekday_names
+        )
+        
+        if all_use_global and schedules.get("global", {}).get("enabled", False):
+            # All weekdays use global schedule
+            weekday_text = format_time_periods(schedules["global"]["periods"])
+            self.weekday_schedule_label.setText(f"Global schedule: {weekday_text}")
+        else:
+            # Check if each weekday is enabled
+            enabled_weekdays = [day for day in weekday_names 
+                               if day in schedules and schedules[day]["enabled"]]
+            
+            if not enabled_weekdays:
+                self.weekday_schedule_label.setText("No weekdays enabled")
+            else:
+                weekday_text = ", ".join(f"{day[:3]}" for day in enabled_weekdays)
+                self.weekday_schedule_label.setText(f"Enabled for: {weekday_text}")
+        
+        # Weekend summary (Saturday-Sunday)
+        weekend_names = ["Saturday", "Sunday"]
+        
+        # Check if both weekend days use the same schedule
+        all_use_global = all(
+            day in schedules and 
+            schedules[day]["enabled"] and 
+            schedules[day]["use_global"]
+            for day in weekend_names
+        )
+        
+        if all_use_global and schedules.get("global", {}).get("enabled", False):
+            # Both weekend days use global schedule
+            weekend_text = format_time_periods(schedules["global"]["periods"])
+            self.weekend_schedule_label.setText(f"Global schedule: {weekend_text}")
+        else:
+            # Check if each weekend day is enabled
+            enabled_weekends = [day for day in weekend_names 
+                              if day in schedules and schedules[day]["enabled"]]
+            
+            if not enabled_weekends:
+                self.weekend_schedule_label.setText("No weekend days enabled")
+            else:
+                weekend_text = ", ".join(day for day in enabled_weekends)
+                self.weekend_schedule_label.setText(f"Enabled for: {weekend_text}")
+        
+        # Custom day schedules
+        days_with_custom = []
+        for day in self.worker.weekly_schedules:
+            if day != "global" and self.worker.weekly_schedules[day].get("enabled", False):
+                if not self.worker.weekly_schedules[day].get("use_global", True):
+                    # This day has custom schedule
+                    periods = format_time_periods(self.worker.weekly_schedules[day]["periods"])
+                    days_with_custom.append(f"{day}: {periods}")
+        
+        if days_with_custom:
+            self.custom_days_label.setVisible(True)
+            self.custom_days_schedule.setVisible(True)
+            self.custom_days_schedule.setText("\n".join(days_with_custom))
+        else:
+            self.custom_days_label.setVisible(False)
+            self.custom_days_schedule.setVisible(False)
         
     # We no longer need the schedule_changed method since we now use the weekly schedule dialog
         
