@@ -23,11 +23,16 @@ build/
 build/*
 dist/
 dist/*
+release_package/
 *.dll
 *.bin
 *.pyd
 *.exe
 !build_exe.py
+
+# Release artifacts
+*.zip
+StayAwake-v*.zip
 
 # PyInstaller files
 *.manifest
