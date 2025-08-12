@@ -51,6 +51,11 @@ stay_awake_config.json
 # Log files
 *.log
 
+# Release and packaging files
+*.zip
+release_package/
+StayAwake-v*.zip
+
 # User-specific files
 .env
 .venv
