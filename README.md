@@ -22,10 +22,11 @@ A lightweight desktop application to prevent your computer from going to sleep w
 
 ## Installation
 
+### From Source
 1. Clone the repository:
 ```
-git clone https://github.com/yourusername/stay-awake.git
-cd stay-awake
+git clone https://github.com/BaileyWatkinsCS/Stay-Awake.git
+cd Stay-Awake
 ```
 
 2. Install dependencies:
@@ -37,6 +38,37 @@ pip install -r requirements.txt
 ```
 python stay_awake.py
 ```
+
+### From Executable
+
+1. Download the latest release from the [Releases page](https://github.com/BaileyWatkinsCS/Stay-Awake/releases)
+2. Extract the zip file
+3. Run `StayAwake.exe`
+
+### Adding to Windows Startup
+
+To have Stay Awake start automatically when Windows starts:
+
+#### Method 1: Startup Folder
+1. Press `Win + R` to open the Run dialog
+2. Type `shell:startup` and press Enter
+3. Copy the `StayAwake.exe` shortcut or create a new shortcut to the executable in this folder
+
+#### Method 2: Task Scheduler
+1. Search for "Task Scheduler" in the Start menu and open it
+2. Click "Create Basic Task" in the right panel
+3. Name it "Stay Awake" and click Next
+4. Select "When I log on" as the trigger and click Next
+5. Select "Start a program" as the action and click Next
+6. Browse to the location of your `StayAwake.exe` file
+7. Click Next and then Finish
+
+#### Method 3: Registry (Advanced)
+1. Press `Win + R`, type `regedit` and press Enter
+2. Navigate to `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run`
+3. Right-click in the right panel and select New > String Value
+4. Name it "StayAwake"
+5. Double-click it and set the value to the full path of your `StayAwake.exe` file (e.g., `C:\Path\To\StayAwake.exe`)
 
 ## Usage
 

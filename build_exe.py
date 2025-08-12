@@ -97,6 +97,13 @@ def build_exe():
     if os.path.exists(dist_dir):
         print(f"Executable location: {dist_dir}")
         
+        # Display startup instructions
+        print("\n=== Adding to Windows Startup ===")
+        print("To have Stay Awake start automatically when Windows boots:")
+        print("1. Press Win + R and type 'shell:startup'")
+        print("2. Create a shortcut to StayAwake.exe in this folder")
+        print("3. See STARTUP_GUIDE.md for more detailed instructions\n")
+        
         # Open explorer to the dist directory
         try:
             if os.name == 'nt':  # Windows
