@@ -18,7 +18,8 @@ import win32gui
 import win32process
 from weekly_schedule_dialog import WeeklyScheduleDialog
 
-CONFIG_FILE = "stay_awake_config.json"
+# Use an absolute path for the config file in user's home directory
+CONFIG_FILE = os.path.join(os.path.expanduser("~"), "stay_awake_config.json")
 
 def is_time_between(start_time, end_time, check_time=None):
     """Check if current time is between start and end time"""
@@ -315,6 +316,9 @@ class StayAwakeApp(QMainWindow):
                 "type": StayAwakeWorker.ACTIVITY_MOUSE_MOVEMENT,
                 "interval": 50,
                 "custom_key": "7E"  # F15 key by default (in hex)
+            },
+            "ui_settings": {
+                "start_minimized": False  # Start minimized to tray
             }
         }
         
@@ -323,16 +327,20 @@ class StayAwakeApp(QMainWindow):
         try:
             # First try to load user's config file
             if os.path.exists(CONFIG_FILE):
+                print(f"Loading configuration from {CONFIG_FILE}")
                 with open(CONFIG_FILE, 'r') as f:
                     config = json.load(f)
+                print("Configuration loaded successfully")
             # If user config doesn't exist, try default config from the repository
             elif os.path.exists("default_config.json"):
+                print("User config not found, loading default_config.json from current directory")
                 with open("default_config.json", 'r') as f:
                     config = json.load(f)
             # If running as PyInstaller executable, try to find default config in the executable
             elif hasattr(sys, '_MEIPASS'):
                 default_config_path = os.path.join(sys._MEIPASS, "default_config.json")
                 if os.path.exists(default_config_path):
+                    print(f"Loading default config from PyInstaller bundle: {default_config_path}")
                     with open(default_config_path, 'r') as f:
                         config = json.load(f)
             
@@ -376,9 +384,15 @@ class StayAwakeApp(QMainWindow):
             elif "custom_key" not in config["activity_settings"]:
                 config["activity_settings"]["custom_key"] = default_config["activity_settings"]["custom_key"]
                 
+            if "ui_settings" not in config:
+                config["ui_settings"] = default_config["ui_settings"]
+                
             return config
         except Exception as e:
-            print(f"Error loading config: {str(e)}")
+            print(f"Error loading configuration: {str(e)}")
+            print(f"Using hardcoded default configuration")
+            # Log the path to help with debugging
+            print(f"Expected config path was: {CONFIG_FILE}")
             return default_config
             
     def save_config(self):
@@ -397,15 +411,34 @@ class StayAwakeApp(QMainWindow):
                 "type": self.worker.activity_type,
                 "interval": self.worker.activity_interval,
                 "custom_key": f"{self.worker.custom_key_code:X}"
+            },
+            "ui_settings": {
+                "start_minimized": getattr(self, 'start_minimized_preference', False)
             }
         }
         
-        with open(CONFIG_FILE, 'w') as f:
-            json.dump(config, f, indent=2)
+        try:
+            # Ensure directory exists
+            config_dir = os.path.dirname(CONFIG_FILE)
+            if not os.path.exists(config_dir) and config_dir:
+                os.makedirs(config_dir)
+                
+            with open(CONFIG_FILE, 'w') as f:
+                json.dump(config, f, indent=2)
+            print(f"Configuration saved successfully to {CONFIG_FILE}")
+        except Exception as e:
+            print(f"Error saving configuration: {str(e)}")
             
     def apply_config_to_worker(self):
         """Apply loaded config settings to the worker"""
         # Set weekly schedules
+        if "weekly_schedules" in self.config and "global" in self.config["weekly_schedules"] and "periods" in self.config["weekly_schedules"]["global"] and self.config["weekly_schedules"]["global"]["periods"]:
+            start_hour = self.config["weekly_schedules"]["global"]["periods"][0].get("start_hour", 9)
+            start_minute = self.config["weekly_schedules"]["global"]["periods"][0].get("start_minute", 0)
+            print(f"Applying global schedule start time from config: {start_hour}:{start_minute}")
+        else:
+            print("Warning: Could not find global schedule start time in config")
+            
         self.worker.set_weekly_schedules(self.config["weekly_schedules"])
         
         # Set app list
@@ -419,6 +452,12 @@ class StayAwakeApp(QMainWindow):
             # Set custom key if it exists
             if "custom_key" in self.config["activity_settings"]:
                 self.worker.set_custom_key(self.config["activity_settings"]["custom_key"])
+        
+        # Load UI settings
+        if "ui_settings" in self.config:
+            self.start_minimized_preference = self.config["ui_settings"].get("start_minimized", False)
+        else:
+            self.start_minimized_preference = False
         
         # Update the schedule summary
         self.update_schedule_summary()
@@ -791,8 +830,22 @@ class StayAwakeApp(QMainWindow):
             
             # Update the schedule summary display
             self.update_schedule_summary()
+            
+            # Save configuration and print debug info
+            print(f"Saving global schedule start time: {self.worker.weekly_schedules['global']['periods'][0]['start_hour']}:{self.worker.weekly_schedules['global']['periods'][0]['start_minute']} to {CONFIG_FILE}")
             self.save_config()
-            # Update the schedule summary
+            
+            # Verify saved configuration
+            try:
+                with open(CONFIG_FILE, 'r') as f:
+                    saved_config = json.load(f)
+                    start_hour = saved_config.get('weekly_schedules', {}).get('global', {}).get('periods', [{}])[0].get('start_hour', 'Not found')
+                    start_minute = saved_config.get('weekly_schedules', {}).get('global', {}).get('periods', [{}])[0].get('start_minute', 'Not found')
+                    print(f"Verified saved global schedule start time: {start_hour}:{start_minute}")
+            except Exception as e:
+                print(f"Error verifying saved configuration: {str(e)}")
+                
+            # Update the schedule summary again
             self.update_schedule_summary()
     
     def activity_type_changed(self):
@@ -1066,9 +1119,37 @@ class StayAwakeApp(QMainWindow):
 
 
 if __name__ == "__main__":
+    import argparse
+    
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Stay Awake - Prevent your computer from sleeping')
+    parser.add_argument('--minimized', action='store_true', 
+                       help='Start the application minimized to system tray')
+    parser.add_argument('--startup', action='store_true',
+                       help='Start the application in startup mode (minimized)')
+    args = parser.parse_args()
+    
     app = QApplication(sys.argv)
     # Prevent app from exiting when last window is closed
     app.setQuitOnLastWindowClosed(False)
+    
     window = StayAwakeApp()
-    window.show()
+    
+    # Check if we should start minimized
+    should_start_minimized = (args.minimized or args.startup or 
+                             getattr(window, 'start_minimized_preference', False))
+    
+    if should_start_minimized:
+        # Don't show the window, just start minimized to tray
+        window.hide()
+        if window.tray_icon:
+            window.tray_icon.showMessage(
+                "Stay Awake",
+                "Application started in system tray.",
+                window.style().standardIcon(window.style().StandardPixmap.SP_ComputerIcon),
+                2000  # Show for 2 seconds
+            )
+    else:
+        window.show()
+    
     sys.exit(app.exec())
