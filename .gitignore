@@ -30,6 +30,9 @@ release_package/
 *.exe
 !build_exe.py
 
+# Release scripts
+create_release.py
+
 # Release artifacts
 *.zip
 StayAwake-v*.zip
