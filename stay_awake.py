@@ -266,6 +266,11 @@ class StayAwakeApp(QMainWindow):
         self.setWindowTitle("Stay Awake")
         self.setMinimumSize(400, 500)
         
+        # Load and set the application icon
+        self.app_icon = self.load_icon()
+        if self.app_icon:
+            self.setWindowIcon(self.app_icon)
+        
         # Initialize activity message tracking
         self.last_activity_message = ""
         
@@ -295,6 +300,37 @@ class StayAwakeApp(QMainWindow):
         
         # Start worker
         self.worker.start()
+        
+    def load_icon(self):
+        """Load the application icon from file"""
+        icon = QIcon()
+        
+        # Try to load the icon from various locations
+        icon_paths = [
+            "windows_icon.ico",  # In the current directory
+            "icon.ico",          # Alternative icon name
+            "icon.png",          # PNG version
+        ]
+        
+        # If running as PyInstaller executable, try to find icon in the executable bundle
+        if hasattr(sys, '_MEIPASS'):
+            bundle_icon_paths = [
+                os.path.join(sys._MEIPASS, "windows_icon.ico"),
+                os.path.join(sys._MEIPASS, "icon.ico"),
+                os.path.join(sys._MEIPASS, "icon.png"),
+            ]
+            icon_paths = bundle_icon_paths + icon_paths
+        
+        # Try each path until we find an icon
+        for icon_path in icon_paths:
+            if os.path.exists(icon_path):
+                icon.addFile(icon_path)
+                print(f"Loaded custom icon from: {icon_path}")
+                return icon
+        
+        # If no custom icon found, return None to use default
+        print("No custom icon found, using default system icon")
+        return None
         
     def load_config(self):
         """Load configuration from file"""
@@ -727,8 +763,13 @@ class StayAwakeApp(QMainWindow):
     def setup_tray(self):
         """Set up the system tray icon and menu"""
         self.tray_icon = QSystemTrayIcon(self)
-        # Use a standard icon since we don't have a custom one
-        self.tray_icon.setIcon(self.style().standardIcon(self.style().StandardPixmap.SP_ComputerIcon))
+        
+        # Use custom icon if available, otherwise fall back to standard icon
+        if hasattr(self, 'app_icon') and self.app_icon and not self.app_icon.isNull():
+            self.tray_icon.setIcon(self.app_icon)
+        else:
+            # Use a standard icon as fallback
+            self.tray_icon.setIcon(self.style().standardIcon(self.style().StandardPixmap.SP_ComputerIcon))
         
         tray_menu = QMenu()
         
@@ -1098,10 +1139,14 @@ class StayAwakeApp(QMainWindow):
         """Override close event to minimize to tray instead of closing"""
         event.ignore()
         self.hide()
+        
+        # Use custom icon for notification if available
+        notification_icon = self.app_icon if (hasattr(self, 'app_icon') and self.app_icon and not self.app_icon.isNull()) else self.style().standardIcon(self.style().StandardPixmap.SP_ComputerIcon)
+        
         self.tray_icon.showMessage(
             "Stay Awake",
             "Application minimized to system tray. Click the icon to restore.",
-            self.style().standardIcon(self.style().StandardPixmap.SP_ComputerIcon)
+            notification_icon
         )
         
     def close_application(self):
@@ -1143,10 +1188,13 @@ if __name__ == "__main__":
         # Don't show the window, just start minimized to tray
         window.hide()
         if window.tray_icon:
+            # Use custom icon for notification if available
+            notification_icon = window.app_icon if (hasattr(window, 'app_icon') and window.app_icon and not window.app_icon.isNull()) else window.style().standardIcon(window.style().StandardPixmap.SP_ComputerIcon)
+            
             window.tray_icon.showMessage(
                 "Stay Awake",
                 "Application started in system tray.",
-                window.style().standardIcon(window.style().StandardPixmap.SP_ComputerIcon),
+                notification_icon,
                 2000  # Show for 2 seconds
             )
     else:
