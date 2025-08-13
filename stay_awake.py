@@ -318,64 +318,67 @@ class StayAwakeApp(QMainWindow):
             }
         }
         
-        # Look for configuration file in the following order:
-        # 1. User's config file (stay_awake_config.json)
-        # 2. Default config file (default_config.json) if included in the repository
-        # 3. Programmatically generated default config if neither exists
+        config = None  # Initialize config variable
         
         try:
+            # First try to load user's config file
             if os.path.exists(CONFIG_FILE):
                 with open(CONFIG_FILE, 'r') as f:
                     config = json.load(f)
+            # If user config doesn't exist, try default config from the repository
             elif os.path.exists("default_config.json"):
-                # Try to use the default config from the repository or executable
                 with open("default_config.json", 'r') as f:
                     config = json.load(f)
-            elif hasattr(sys, '_MEIPASS'):  # Check if running as PyInstaller executable
+            # If running as PyInstaller executable, try to find default config in the executable
+            elif hasattr(sys, '_MEIPASS'):
                 default_config_path = os.path.join(sys._MEIPASS, "default_config.json")
                 if os.path.exists(default_config_path):
                     with open(default_config_path, 'r') as f:
                         config = json.load(f)
+            
+            # If we couldn't load config from any source, use the default
+            if config is None:
+                config = default_config
                 
-                # Handle migration from old config format to new
-                if "weekly_schedule" in config and "schedules" in config["weekly_schedule"]:
-                    # Migrate from old format
-                    config["weekly_schedules"] = config["weekly_schedule"]["schedules"]
-                    config["schedule"]["enabled"] = config["weekly_schedule"]["enabled"]
-                    # Remove old key
-                    config.pop("weekly_schedule", None)
-                    
-                # If we're upgrading from very old config with just basic schedule
-                elif "schedule" in config and "start_hour" in config["schedule"]:
-                    # Create a default weekly schedule with the basic schedule times
-                    for day in WeeklyScheduleDialog.DAYS_OF_WEEK:
-                        default_weekly_schedules[day]["periods"][0].update({
-                            "start_hour": config["schedule"]["start_hour"],
-                            "start_minute": config["schedule"]["start_minute"],
-                            "end_hour": config["schedule"]["end_hour"],
-                            "end_minute": config["schedule"]["end_minute"]
-                        })
-                    # Update the global schedule too
-                    default_weekly_schedules["global"]["periods"][0].update({
+            # Handle migration from old config format to new
+            if "weekly_schedule" in config and "schedules" in config["weekly_schedule"]:
+                # Migrate from old format
+                config["weekly_schedules"] = config["weekly_schedule"]["schedules"]
+                config["schedule"]["enabled"] = config["weekly_schedule"]["enabled"]
+                # Remove old key
+                config.pop("weekly_schedule", None)
+                
+            # If we're upgrading from very old config with just basic schedule
+            elif "schedule" in config and "start_hour" in config["schedule"]:
+                # Create a default weekly schedule with the basic schedule times
+                for day in WeeklyScheduleDialog.DAYS_OF_WEEK:
+                    default_weekly_schedules[day]["periods"][0].update({
                         "start_hour": config["schedule"]["start_hour"],
                         "start_minute": config["schedule"]["start_minute"],
                         "end_hour": config["schedule"]["end_hour"],
                         "end_minute": config["schedule"]["end_minute"]
                     })
-                    config["weekly_schedules"] = default_weekly_schedules
+                # Update the global schedule too
+                default_weekly_schedules["global"]["periods"][0].update({
+                    "start_hour": config["schedule"]["start_hour"],
+                    "start_minute": config["schedule"]["start_minute"],
+                    "end_hour": config["schedule"]["end_hour"],
+                    "end_minute": config["schedule"]["end_minute"]
+                })
+                config["weekly_schedules"] = default_weekly_schedules
+            
+            # Ensure all required sections exist in older config files
+            if "weekly_schedules" not in config:
+                config["weekly_schedules"] = default_weekly_schedules
                 
-                # Ensure all required sections exist in older config files
-                if "weekly_schedules" not in config:
-                    config["weekly_schedules"] = default_weekly_schedules
-                    
-                if "activity_settings" not in config:
-                    config["activity_settings"] = default_config["activity_settings"]
-                elif "custom_key" not in config["activity_settings"]:
-                    config["activity_settings"]["custom_key"] = default_config["activity_settings"]["custom_key"]
-                    
-                return config
-            return default_config
-        except:
+            if "activity_settings" not in config:
+                config["activity_settings"] = default_config["activity_settings"]
+            elif "custom_key" not in config["activity_settings"]:
+                config["activity_settings"]["custom_key"] = default_config["activity_settings"]["custom_key"]
+                
+            return config
+        except Exception as e:
+            print(f"Error loading config: {str(e)}")
             return default_config
             
     def save_config(self):
