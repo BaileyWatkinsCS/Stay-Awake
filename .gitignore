@@ -48,6 +48,19 @@ StayAwake-v*.zip
 # Local configuration (will be generated on first run)
 stay_awake_config.json
 
+# Generated multi-size ICO file (built from individual ICO files)
+windows_icon.ico
+
+# ICO backup files from processing
+*_original.ico
+
+# All ICO files (ignore individual source ICO files too)
+*.ico
+
+# Note: ICO files are not tracked in git
+# - Build script creates windows_icon.ico from individual icon files
+# - Individual ICO files should be provided by developers locally
+
 # Log files
 *.log
 

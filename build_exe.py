@@ -7,52 +7,61 @@ import PyInstaller.__main__
 import shutil
 from PIL import Image
 
+def create_multisize_ico_from_individual_files():
+    """Create a multi-size ICO file from individual size-specific ICO files."""
+    print("Creating multi-size ICO from individual ICO files...")
+    
+    # Map of sizes to filenames
+    size_files = {
+        16: 'icon 16.ico',
+        24: 'icon 24.ico', 
+        32: 'icon 32.ico',
+        48: 'icon 48.ico',
+        64: 'icon 64.ico',
+        96: 'icon 96.ico',
+        128: 'icon 128.ico',
+        256: 'icon 256.ico',
+        512: 'icon.ico'  # Main icon file is 512x512
+    }
+    
+    # Load all available sizes
+    images = []
+    available_sizes = []
+    
+    for size, filename in size_files.items():
+        if os.path.exists(filename):
+            try:
+                img = Image.open(filename)
+                # Ensure it's RGBA
+                if img.mode != 'RGBA':
+                    img = img.convert('RGBA')
+                images.append(img)
+                available_sizes.append(size)
+                print(f"  Loaded {filename} ({size}x{size})")
+            except Exception as e:
+                print(f"  Warning: Could not load {filename}: {e}")
+    
+    if images:
+        # Save combined multi-size ICO
+        multisize_path = 'windows_icon.ico'
+        images[0].save(
+            multisize_path,
+            format='ICO',
+            sizes=[(s, s) for s in available_sizes],
+            append_images=images[1:]
+        )
+        print(f"Created multi-size ICO: {multisize_path} with sizes: {available_sizes}")
+        return multisize_path
+    else:
+        print("No individual ICO files found")
+        return None
+
 def build_exe():
     """Build the executable using PyInstaller."""
     print("Building Stay Awake executable...")
     
-    # Create a properly formatted Windows icon file
-    windows_icon_path = 'windows_icon.ico'
-    if os.path.exists('icon.png') and (not os.path.exists(windows_icon_path) or os.path.getsize(windows_icon_path) < 1000):
-        try:
-            # Open the image and ensure it's RGBA (transparent background)
-            img = Image.open('icon.png')
-            if img.mode != 'RGBA':
-                img = img.convert('RGBA')
-            
-            # Standard Windows icon sizes
-            sizes = [(16, 16), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
-            
-            # Create a transparent background for each size
-            resized_imgs = []
-            for size in sizes:
-                # Create a new transparent image
-                new_img = Image.new('RGBA', size, (0, 0, 0, 0))
-                
-                # Resize the original image proportionally to fit within the size
-                ratio = min(size[0] / img.width, size[1] / img.height)
-                resized_width = int(img.width * ratio)
-                resized_height = int(img.height * ratio)
-                resized = img.resize((resized_width, resized_height), Image.LANCZOS)
-                
-                # Calculate position to center the image
-                pos_x = (size[0] - resized_width) // 2
-                pos_y = (size[1] - resized_height) // 2
-                
-                # Paste the resized image onto the transparent background
-                new_img.paste(resized, (pos_x, pos_y), resized)
-                resized_imgs.append(new_img)
-            
-            # Save as ICO
-            resized_imgs[0].save(windows_icon_path, format='ICO', 
-                               sizes=[(img.size[0], img.size[1]) for img in resized_imgs],
-                               append_images=resized_imgs[1:])
-            
-            print(f"Created standard Windows icon at {windows_icon_path}")
-        except ImportError:
-            print("Pillow not installed. Using default icon.")
-        except Exception as e:
-            print(f"Error creating icon: {e}")
+    # First, create multi-size ICO from individual files
+    multisize_ico = create_multisize_ico_from_individual_files()
     
     # Define PyInstaller options
     args = [
@@ -63,29 +72,29 @@ def build_exe():
         '--clean',  # Clean cache before building
     ]
     
-    # Use the standard Windows icon that we created
-    if os.path.exists('windows_icon.ico'):
-        icon_path = os.path.abspath('windows_icon.ico')
+    # Use the multi-size ICO we just created, or fall back to individual files
+    if multisize_ico and os.path.exists(multisize_ico):
+        icon_path = os.path.abspath(multisize_ico)
         args.append(f'--icon={icon_path}')
-        print(f"Using standard Windows icon: {icon_path}")
-    elif os.path.exists('app_icon.ico'):
-        icon_path = os.path.abspath('app_icon.ico')
-        args.append(f'--icon={icon_path}')
-        print(f"Using app_icon.ico: {icon_path}")
+        print(f"Using multi-size ICO: {icon_path}")
     elif os.path.exists('icon.ico'):
         icon_path = os.path.abspath('icon.ico')
         args.append(f'--icon={icon_path}')
-        print(f"Using icon.ico: {icon_path}")
-    elif os.path.exists('icon.png'):
-        icon_path = os.path.abspath('icon.png')
-        args.append(f'--icon={icon_path}')
-        print(f"Using icon.png directly: {icon_path}")
+        print(f"Using main icon.ico: {icon_path}")
     else:
         print("No icon specified")
     
     # Add data files if needed (configs, etc.)
     if os.path.exists('default_config.json'):
         args.append('--add-data=default_config.json;.')
+    
+    # Add icon files as data files so they're available at runtime
+    if os.path.exists('windows_icon.ico'):
+        args.append('--add-data=windows_icon.ico;.')
+        print("Adding windows_icon.ico as data file")
+    elif os.path.exists('icon.ico'):
+        args.append('--add-data=icon.ico;.')
+        print("Adding icon.ico as data file")
     
     # Run PyInstaller
     PyInstaller.__main__.run(args)
